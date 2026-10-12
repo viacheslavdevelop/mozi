@@ -276,7 +276,7 @@ def variant_menu():
     print(f"\nДве самые встречаемые буквы в шифр-тексте: {top2_cipher[0]}, {top2_cipher[1]}")
     print(f"Частоты: {cipher_freq[top2_cipher[0]][1]:.4f}, {cipher_freq[top2_cipher[1]][1]:.4f}")
     
-    print("\n=== Выдвижение гипотез ===")
+    print("\nВыдвижение гипотез")
     sorted_russian = sorted(RUSSIAN_FREQ.items(), 
                            key=lambda x: x[1], 
                            reverse=True)
