@@ -286,7 +286,7 @@ def variant_menu():
     for p1, p2 in itertools.permutations(russian_chars, 2):
         freq1 = RUSSIAN_FREQ.get(p1, 0)
         freq2 = RUSSIAN_FREQ.get(p2, 0)
-        prob = freq1 * freq2
+        prob = freq1 + freq2
         pairs_with_prob.append(((p1, p2), prob))
     
     pairs_with_prob.sort(key=lambda x: x[1], reverse=True)
