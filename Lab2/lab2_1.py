@@ -132,24 +132,24 @@ def solve_linear_congruence(a, b, m):
 
     return [(x0 + i * m_prime) % m for i in range(gcd)]
 
-def solve_system(a, b, c, d, m):
+def solve_system(x1, y1, x2, y2, m):
     if m <= 1:
         return None
 
-    a = a % m
-    b = b % m
-    c = c % m
-    d = d % m
+    x1 = x1 % m
+    y1 = y1 % m
+    x2 = x2 % m
+    y2 = y2 % m
 
-    diff_a = (a - c) % m
-    diff_b = (b - d) % m
+    diff_x = (x1 - x2) % m
+    diff_y = (y1 - y2) % m
 
-    x_sols = solve_linear_congruence(diff_a, diff_b, m)
+    a_sols = solve_linear_congruence(diff_x, diff_y, m)
     
     results = []
-    for x in x_sols:
-        y = (b - a * x) % m
-        results.append((x, y))
+    for a_val in a_sols:
+        b_val = (y1 - a_val * x1) % m
+        results.append((a_val, b_val))
 
     return results
 
