@@ -269,10 +269,15 @@ def variant_menu():
                                 key=lambda x: x[1][0], 
                                 reverse=True)
     print("\nЧастоты букв в шифр-тексте:")
+    total_chars = len([c for c in cipher_text if c.lower() in ALPHABET])
     for char, (count, prob) in sorted_cipher_freq:
-        print(f"p({char}) = {count}/{len([c for c in cipher_text if c.lower() in ALPHABET])} = {prob:.4f}")
+        print(f"p({char}) = {count}/{total_chars} = {prob:.4f}")
     
     top2_cipher = get_top_chars(cipher_freq, 2)
+    if len(top2_cipher) < 2:
+        print("Ошибка: в шифр-тексте меньше двух различных букв.")
+        return
+        
     print(f"\nДве самые встречаемые буквы в шифр-тексте: {top2_cipher[0]}, {top2_cipher[1]}")
     print(f"Частоты: {cipher_freq[top2_cipher[0]][1]:.4f}, {cipher_freq[top2_cipher[1]][1]:.4f}")
     
@@ -310,18 +315,26 @@ def variant_menu():
         
         keys = solve_system(x1, y1, x2, y2, M)
         
-        if not keys:
+        # Фильтруем только те ключи, где НОД(a, M) == 1 (существует обратный элемент)
+        valid_keys = [(a, b) for a, b in (keys or []) if gcd_ext(a, M)[0] == 1]
+        
+        if not valid_keys:
+            # Если нужно выводить ДАЖЕ те системы, у которых нет подходящих решений,
+            # раскомментируйте строки ниже:
+            # print(f"\nГипотеза {hypothesis_num}: '{p1}'({x1}) -> '{c1}'({y1}), '{p2}'({x2}) -> '{c2}'({y2})")
+            # print(f"Система уравнений:\n  {x1}*a + b ≡ {y1} (mod {M})\n  {x2}*a + b ≡ {y2} (mod {M})")
+            # print("Подходящих обратимых ключей нет.")
             continue
         
-        for a, b in keys:
-            if gcd_ext(a, M)[0] != 1:
-                continue
-            
+        for a, b in valid_keys:
             decrypted = decrypt_affine(cipher_text, a, b)
             
-            print(f"\nГипотеза {hypothesis_num}: {p1} -> {c1}, {p2} -> {c2}")
-            print(f"Ключ: a = {a}, b = {b}")
-            print(f"Расшифрованный текст (первые 100 символов):")
+            print(f"\nГипотеза {hypothesis_num}: '{p1}' (код {x1}) -> '{c1}' (код {y1}), '{p2}' (код {x2}) -> '{c2}' (код {y2})")
+            print("Система уравнений:")
+            print(f"  / {x1} * a + b ≡ {y1} (mod {M})")
+            print(f"  \\ {x2} * a + b ≡ {y2} (mod {M})")
+            print(f"Найденный ключ: a = {a}, b = {b}")
+            print("Расшифрованный текст (первые 100 символов):")
             print(decrypted[:100])
             if len(decrypted) > 100:
                 print("...")
@@ -337,7 +350,9 @@ def variant_menu():
                 if fname:
                     try:
                         with open(fname, 'w', encoding='utf-8') as f:
-                            f.write(f"Ключ: a={a}, b={b}\n")
+                            f.write(f"Гипотеза: {p1} -> {c1}, {p2} -> {c2}\n")
+                            f.write(f"Система:\n{x1}*a + b = {y1} (mod {M})\n{x2}*a + b = {y2} (mod {M})\n")
+                            f.write(f"Ключ: a={a}, b={b}\n\n")
                             f.write(decrypted)
                         print("Успешно сохранено.")
                     except Exception as e:
