@@ -1,6 +1,6 @@
 import random
 
-ALPHABET = "АБВГДЕЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
+ALPHABET = "абвгдежзийклмнопрстуфхцчшщъыьэюя"
 
 CHAR_TO_CODE = {char: str(10 + idx) for idx, char in enumerate(ALPHABET)}
 CHAR_TO_CODE[" "] = "99"
@@ -85,7 +85,7 @@ def generate_key_pairs(p, q, count=3):
 
 
 def text_to_digits(text):
-    text = text.upper().replace("Ё", "Е")
+    text = text.lower().replace("ё", "е")
     digits = []
     for ch in text:
         if ch in CHAR_TO_CODE:
