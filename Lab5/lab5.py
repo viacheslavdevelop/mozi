@@ -1,43 +1,46 @@
 ALPHABET = "абвгдежзийклмнопрстуфхцчшщъыьэюя"
 
-
 CHAR_TO_CODE = {char: str(10 + idx) for idx, char in enumerate(ALPHABET)}
 CHAR_TO_CODE[" "] = "99"
-
 
 CODE_TO_CHAR = {code: char for char, code in CHAR_TO_CODE.items()}
 
 
+def gcd(a, b):
+    a = abs(a)
+    b = abs(b)
+    while b != 0:
+        a, b = b, a % b
+    return a
+
 
 def gcd_ext(a, b):
-    def _gcd_ext_pos(a, b):
-        if a == 0:
-            return b, 0, 1
-        gcd, x1, y1 = _gcd_ext_pos(b % a, a)
-        x = y1 - (b // a) * x1
-        y = x1
-        return gcd, x, y
+    old_r, r = abs(a), abs(b)
+    old_x, x = 1, 0
+    old_y, y = 0, 1
 
-    gcd, x, y = _gcd_ext_pos(abs(a), abs(b))
+    while r != 0:
+        q = old_r // r
+        old_r, r = r, old_r - q * r
+        old_x, x = x, old_x - q * x
+        old_y, y = y, old_y - q * y
 
     if a < 0:
-        x = -x
+        old_x = -old_x
     if b < 0:
-        y = -y
+        old_y = -old_y
 
-    return gcd, x, y
-
+    return old_r, old_x, old_y
 
 
 def mod_inverse(a, m):
     if m <= 1:
         return None
 
-    gcd, x, _ = gcd_ext(a, m)
-    if gcd != 1:
+    g, x, _ = gcd_ext(a, m)
+    if g != 1:
         return None
     return x % m
-
 
 
 def bin_pow_mod(a, n, m):
@@ -65,42 +68,176 @@ def bin_pow_mod(a, n, m):
     return result
 
 
+def isqrt(n):
+    if n < 0:
+        return None
+    if n < 2:
+        return n
+    x = 1 << ((n.bit_length() + 1) // 2)
+    while True:
+        y = (x + n // x) // 2
+        if y >= x:
+            return x
+        x = y
+
+
+def odd_primes_generator():
+    base_primes = []
+    low = 3
+    segment_size = 1024
+
+    while True:
+        high = low + segment_size
+        size = (high - low) // 2
+        sieve = bytearray([1]) * size
+
+        for p in base_primes:
+            if p * p >= high:
+                break
+            start = p * p
+            if start < low:
+                rem = low % p
+                start = low if rem == 0 else low + (p - rem)
+            if start % 2 == 0:
+                start += p
+            if start < high:
+                idx = (start - low) // 2
+                count = (size - 1 - idx) // p + 1
+                sieve[idx::p] = bytearray(count)
+
+        for i in range(size):
+            if sieve[i]:
+                p = low + 2 * i
+                if p * p < high:
+                    idx = (p * p - low) // 2
+                    count = (size - 1 - idx) // p + 1
+                    sieve[idx::p] = bytearray(count)
+                base_primes.append(p)
+                yield p
+
+        low = high
+        if segment_size < 131072:
+            segment_size *= 2
+
 
 def trial_division_factor(n):
-    if n < 4:
+    if n < 2:
         return None
 
-    if n % 2 == 0:
-        return 2, n // 2
+    factors = []
 
-    divisor = 3
-    while divisor * divisor <= n:
-        if n % divisor == 0:
-            return divisor, n // divisor
-        divisor += 2
+    while n % 2 == 0:
+        factors.append(2)
+        n //= 2
 
-    return None
+    if n == 1:
+        return factors
 
+    limit = isqrt(n)
+    primes = odd_primes_generator()
+
+    while n > 1:
+        p1 = next(primes)
+        if p1 > limit:
+            break
+
+        triple = [p1]
+        p2 = next(primes)
+        if p2 <= limit:
+            triple.append(p2)
+            p3 = next(primes)
+            if p3 <= limit:
+                triple.append(p3)
+
+        s = 1
+        for p in triple:
+            s *= p
+
+        while True:
+            d = gcd(n, s)
+            if d == 1:
+                break
+            n //= d
+            for p in triple:
+                if d % p == 0:
+                    factors.append(p)
+            limit = isqrt(n)
+
+    if n > 1:
+        factors.append(n)
+
+    factors.sort()
+    return factors
+
+
+def count_prime_powers(factors):
+    counts = {}
+    for p in factors:
+        counts[p] = counts.get(p, 0) + 1
+    return counts
+
+
+def euler_phi_from_factors(factors):
+    if not factors:
+        return None
+    counts = count_prime_powers(factors)
+    phi = 1
+    for p, k in counts.items():
+        phi *= (p ** (k - 1)) * (p - 1)
+    return phi
+
+
+def format_factorization(n, factors):
+    if len(factors) == 1:
+        return f"n = {n} — простое число"
+
+    expanded = " * ".join(str(p) for p in factors)
+    counts = count_prime_powers(factors)
+    canonical_parts = []
+    for p, k in counts.items():
+        if k == 1:
+            canonical_parts.append(str(p))
+        else:
+            canonical_parts.append(f"{p}^{k}")
+    canonical = " * ".join(canonical_parts)
+
+    if canonical != expanded:
+        return f"n = {n} = {expanded} = {canonical}"
+    return f"n = {n} = {expanded}"
+
+
+def format_phi_formula(factors):
+    counts = count_prime_powers(factors)
+    parts = []
+    for p, k in counts.items():
+        if k == 1:
+            parts.append(f"({p} - 1)")
+        elif k == 2:
+            parts.append(f"{p} * ({p} - 1)")
+        else:
+            parts.append(f"{p}^{k - 1} * ({p} - 1)")
+    return " * ".join(parts)
 
 
 def recover_private_key(e, n):
-    factors = trial_division_factor(n)
-    if factors is None:
+    if e <= 0:
         return None
 
-    p, q = factors
-    phi = (p - 1) * (q - 1)
+    factors = trial_division_factor(n)
+    if factors is None or len(factors) < 2:
+        return None
+
+    phi = euler_phi_from_factors(factors)
     d = mod_inverse(e, phi)
 
     if d is None:
         return None
 
-    return p, q, phi, d
-
+    return factors, phi, d
 
 
 def digits_to_text(digits_str):
-    if len(digits_str) % 2 != 0:
+    if not digits_str or len(digits_str) % 2 != 0 or not digits_str.isdigit():
         return None
 
     chars = []
@@ -109,7 +246,6 @@ def digits_to_text(digits_str):
         chars.append(CODE_TO_CHAR.get(code, "?"))
 
     return "".join(chars)
-
 
 
 def text_to_digits(text):
@@ -123,9 +259,8 @@ def text_to_digits(text):
     return "".join(digits)
 
 
-
 def perform_full_attack(e, n, c):
-    print(f"\nИсходные данные:")
+    print("\nИсходные данные:")
     print(f"  открытый ключ: (e, n) = ({e}, {n})")
     print(f"  зашифрованное сообщение: C = {c}")
 
@@ -133,22 +268,34 @@ def perform_full_attack(e, n, c):
     factors = trial_division_factor(n)
 
     if factors is None:
-        print(f"  Не удалось разложить n = {n} на два множителя.")
+        print(f"  Не удалось разложить n = {n}: модуль должен быть целым числом больше 1.")
         return None
 
-    p, q = factors
-    print(f"  Найден делитель p = {p}")
-    print(f"  q = n / p = {q}")
-    print(f"  Проверка: {p} * {q} = {p * q}")
+    if len(factors) < 2:
+        print(f"  n = {n} является простым числом. Для RSA требуется составной модуль.")
+        return None
 
-    phi = (p - 1) * (q - 1)
-    print(f"  phi(n) = (p - 1)(q - 1) = {phi}")
+    print(f"  {format_factorization(n, factors)}")
+    product_check = 1
+    for p in factors:
+        product_check *= p
+    print(f"  Проверка произведения: {product_check}")
+
+    phi = euler_phi_from_factors(factors)
+    print(f"  phi(n) = {format_phi_formula(factors)} = {phi}")
+
+    if len(set(factors)) < len(factors):
+        print("  Предупреждение: модуль n имеет кратные простые множители; расшифрование корректно при НОД(M, n) = 1.")
 
     print("\n2. Определение закрытого ключа")
+    if e <= 0:
+        print(f"  Некорректная открытая экспонента e = {e}: требуется e > 0.")
+        return None
+
     d = mod_inverse(e, phi)
 
     if d is None:
-        print("  Не удалось найти d = e^(-1) mod phi(n).")
+        print("  Не удалось найти d = e^(-1) mod phi(n): e и phi(n) не взаимно просты.")
         return None
 
     print(f"  d = e^(-1) mod phi(n) = {d}")
@@ -173,8 +320,7 @@ def perform_full_attack(e, n, c):
     else:
         print(f"  Расшифрованный текст: \"{plain_text}\"")
 
-    return p, q, phi, d, m, plain_text
-
+    return factors, phi, d, m, plain_text
 
 
 def read_ints(prompt_text, count):
@@ -182,23 +328,21 @@ def read_ints(prompt_text, count):
         raw = input(prompt_text + ": ").strip()
         parts = raw.replace(",", " ").split()
 
-        if len(parts) < count:
-            print("Ошибка: недостаточно данных.")
+        if len(parts) != count:
+            print(f"Ошибка: введите ровно {count} целых чисел.")
             continue
 
         try:
-            vals = [int(x) for x in parts[:count]]
+            vals = [int(x) for x in parts]
             return vals[0] if count == 1 else vals
         except ValueError:
             print("Ошибка: введите целые числа.")
-
 
 
 def ui_math_gcd():
     a, b = read_ints("Введите a и b", 2)
     g, u, v = gcd_ext(a, b)
     print(f"НОД({a}, {b}) = {g}, u = {u}, v = {v}")
-
 
 
 def ui_math_inverse():
@@ -211,7 +355,6 @@ def ui_math_inverse():
         print(f"{a}^-1 (mod {m}) = {inv}")
 
 
-
 def ui_math_pow():
     a, n, m = read_ints("Введите a, n и m", 3)
     res = bin_pow_mod(a, n, m)
@@ -222,32 +365,42 @@ def ui_math_pow():
         print(f"{a}^{n} (mod {m}) = {res}")
 
 
-
 def ui_math_factor():
     n = read_ints("Введите число n для факторизации", 1)
     factors = trial_division_factor(n)
 
     if factors is None:
-        print(f"Число {n} не удалось разложить методом пробного деления (возможно, оно простое или меньше 4).")
+        print(f"Для числа {n} разложение на простые множители не определено (введите целое число больше 1).")
     else:
-        p, q = factors
-        print(f"n = {n} = {p} * {q}")
-
+        print(format_factorization(n, factors))
 
 
 def ui_math_recover():
     e, n = read_ints("Введите e и n", 2)
-    recovered = recover_private_key(e, n)
 
-    if recovered is None:
-        print("Не удалось восстановить закрытый ключ (факторизация не удалась или e и phi(n) не взаимно просты).")
+    if e <= 0:
+        print("Открытая экспонента e должна быть положительным целым числом.")
+        return
+
+    factors = trial_division_factor(n)
+    if factors is None:
+        print("Модуль n должен быть целым числом больше 1.")
+        return
+
+    if len(factors) < 2:
+        print(f"n = {n} — простое число. Для RSA требуется составной модуль.")
+        return
+
+    phi = euler_phi_from_factors(factors)
+    d = mod_inverse(e, phi)
+
+    if d is None:
+        print("Не удалось восстановить закрытый ключ: e и phi(n) не взаимно просты.")
     else:
-        p, q, phi, d = recovered
-        print(f"p = {p}, q = {q}")
-        print(f"phi(n) = (p - 1)(q - 1) = {phi}")
+        print(format_factorization(n, factors))
+        print(f"phi(n) = {format_phi_formula(factors)} = {phi}")
         print(f"d = e^(-1) mod phi(n) = {d}")
         print(f"Закрытый ключ: (d, n) = ({d}, {n})")
-
 
 
 def math_menu():
@@ -276,7 +429,6 @@ def math_menu():
             break
         else:
             print("Некорректный ввод.")
-
 
 
 def cryptanalysis_menu():
@@ -318,31 +470,39 @@ def cryptanalysis_menu():
             factors = trial_division_factor(n)
 
             if factors is None:
-                print(f"n = {n} не удалось разложить методом пробного деления.")
+                print(f"Для n = {n} разложение на простые множители не определено (введите целое число больше 1).")
             else:
-                p, q = factors
-                print(f"n = {n} = {p} * {q}")
+                print(format_factorization(n, factors))
 
         elif choice == "3":
             if e is None or n is None:
                 print("Сначала введите e и n.")
                 continue
 
+            if e <= 0:
+                print("Открытая экспонента e должна быть положительным целым числом.")
+                phi = None
+                d = None
+                continue
+
             if factors is None:
                 factors = trial_division_factor(n)
 
-            if factors is None:
-                print("Сначала необходимо успешно факторизовать n.")
+            if factors is None or len(factors) < 2:
+                print("Модуль n должен быть составным целым числом больше 3.")
+                phi = None
+                d = None
                 continue
 
-            p, q = factors
-            phi = (p - 1) * (q - 1)
+            phi = euler_phi_from_factors(factors)
             d = mod_inverse(e, phi)
 
             if d is None:
                 print("Обратный элемент d не существует: e и phi(n) не взаимно просты.")
             else:
-                print(f"phi(n) = ({p} - 1)({q} - 1) = {phi}")
+                if len(set(factors)) < len(factors):
+                    print("Предупреждение: модуль n имеет кратные простые множители; расшифрование корректно при НОД(M, n) = 1.")
+                print(f"phi(n) = {format_phi_formula(factors)} = {phi}")
                 print(f"d = e^(-1) mod phi(n) = {d}")
                 print(f"Закрытый ключ: (d, n) = ({d}, {n})")
 
@@ -362,7 +522,7 @@ def cryptanalysis_menu():
                     print("Не удалось восстановить закрытый ключ.")
                     continue
 
-                p, q, phi, d = recovered
+                factors, phi, d = recovered
 
             decrypted_m = bin_pow_mod(c, d, n)
 
@@ -391,14 +551,17 @@ def cryptanalysis_menu():
             result = perform_full_attack(e, n, c)
 
             if result is not None:
-                p, q, phi, d, decrypted_m, _ = result
-                factors = (p, q)
+                factors, phi, d, decrypted_m, _ = result
+            else:
+                factors = trial_division_factor(n)
+                phi = None
+                d = None
+                decrypted_m = None
 
         elif choice == "6":
             break
         else:
             print("Некорректный ввод.")
-
 
 
 def main():
@@ -420,6 +583,8 @@ def main():
             print("Некорректный ввод.")
 
 
-
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (KeyboardInterrupt, EOFError):
+        print("\nРабота программы завершена.")
